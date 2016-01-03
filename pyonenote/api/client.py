@@ -14,8 +14,8 @@ class Client:
     OAUTH_TOKEN_URI = 'https://login.live.com/oauth20_token.srf'
     OAUTH_SIGNOUT_URI = 'https://login.live.com/oauth20_logout.srf'
     API_URI = 'https://www.onenote.com/api/v1.0/'
-    DEFAULT_CLIENT_ID = '000000004416FFEC'
-    DEFAULT_CLIENT_SECRET = 'xdFxXg8SccDLuhrJ8RX8oOfXcjo6fl9-'
+    DEFAULT_CLIENT_ID = ''
+    DEFAULT_CLIENT_SECRET = ''
 
     def __init__(self, client_id=DEFAULT_CLIENT_ID, client_secret=DEFAULT_CLIENT_SECRET,
                  client_scope=DEFAULT_CLIENT_SCOPE,
@@ -87,7 +87,7 @@ class Client:
             session_info = response.json()
             expires_at = time.time() + session_info['expires_in']
             session_info['expires_at'] = expires_at
-        self.session_info = session_info
+            self.session_info = session_info
         return self.session_info
 
     def renew_tokens(self, session_info_old):

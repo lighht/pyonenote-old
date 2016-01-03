@@ -30,7 +30,7 @@ class NotebookDB:
     def fetch(self):
         client_obj = client.Client()
         if not os.path.exists(SESSION_FILE):
-            print('file not found')
+            print('session file not found')
             sys.exit()
         else:
             session_info = client_obj.get_session_info()

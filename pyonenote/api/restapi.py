@@ -1,11 +1,15 @@
+import os
 import sys
 
 import requests
 
+from pyonenote import SESSION_FILE
+from pyonenote.api.client import Client
+
 
 class RestAPI:
-    def __init__(self, session_info):
-        self.session_info = session_info
+    def __init__(self):
+        self.session_info = self.get_session_info()
 
     def get_pages_list(self):
         bearer_token = 'Bearer ' + self.session_info['access_token']
@@ -14,11 +18,9 @@ class RestAPI:
         }
 
         parameters = {
-            'orderBy': 'createdTime',
             'top': '100',
             'count': 'true',
             'expand': 'parentNotebook, parentSection',
-            'pageLevel': 'true'
         }
 
         try:
@@ -30,6 +32,18 @@ class RestAPI:
             sys.exit(1)
 
         return pages_info
+
+    def get_page_content(self, page_url):
+        bearer_token = 'Bearer ' + self.session_info['access_token']
+        headers = {
+            'Authorization': bearer_token
+        }
+        try:
+            response = requests.get(page_url, headers=headers)
+            response_body = response.text
+        except:
+            response_body = 'Page request failed'
+        return (response_body)
 
     def get_notebooks_list(self):
         bearer_token = 'Bearer ' + self.session_info['access_token']
@@ -96,3 +110,14 @@ class RestAPI:
             </html>
             """
         return (head + title + titlend + body + bodyend)
+
+    def get_session_info(self):
+        client_obj = Client()
+        if not os.path.exists(SESSION_FILE):
+            print('file not found')
+            sys.exit()
+        else:
+            session_info = client_obj.get_session_info()
+            print('session info loaded')
+        self.session_info = session_info
+        return self.session_info
