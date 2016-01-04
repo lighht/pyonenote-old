@@ -46,15 +46,17 @@ from PyQt5.QtGui import QIcon, QKeySequence
 from PyQt5.QtWebKitWidgets import QWebView
 from PyQt5.QtWidgets import (QAction, QApplication, QFileDialog, QMainWindow,
                              QMessageBox, QTextEdit, QStyleFactory, QGroupBox, QHBoxLayout, QListWidget,
-                             QListWidgetItem, QSizePolicy,
-                             QTreeWidget, QTreeWidgetItem)
+                             QListWidgetItem, QLabel,
+                             QTreeWidget, QTreeWidgetItem, QVBoxLayout)
 
+from pyonenote.api.pages import FetchPage
 from pyonenote.database.database_manager import Dbm
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
+        self.dbm_obj = Dbm()
         self.curFile = ''
         self.textEdit = QTextEdit()
         self.sectionTreeWidget = QTreeWidget()
@@ -74,6 +76,8 @@ class MainWindow(QMainWindow):
         self.setCurrentFile('')
 
         # For binding slots and signals
+        self.fetchPageThread = FetchPage()
+        self.fetchPageThread.setObjectName('fetchPageThread')
         self.textEdit.document().contentsChanged.connect(self.documentWasModified)
         self.sectionTreeWidget.setObjectName("sectionTreeWidget")
         self.notesListWidget.setObjectName("notesListWidget")
@@ -88,25 +92,35 @@ class MainWindow(QMainWindow):
     @pyqtSlot()
     def on_notesListWidget_itemSelectionChanged(self):
         for x in self.notesListWidget.selectedItems():
-            self.view.setHtml(self.page_dict[x.data(1)].getContent())
-            # if x.id in self.page_dict.keys():
-            #     print(self.page_dict[x.text(1)].title)
+            self.fetchPageThread.fetchSignal.connect(self.on_fetchPageThread_fetchComplete)
+            # self.fetchPageThread.fetchSignal.connect(lambda:self.view.setHtml("<body>hello world</body>"))
+            self.fetchPageThread.fetch(self.page_dict[x.data(1)])
+
+    def on_fetchPageThread_fetchComplete(self, string):
+        self.view.setHtml(string)
+        self.titleLabel.setText(self.view.title())
 
     def createHorizontalGroupBox(self):
         self.horizontalGroupBox = QGroupBox()
         layout = QHBoxLayout()
 
-        self.sectionTreeWidget.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Minimum)
-        self.sectionTreeWidget.setWindowTitle('Sections')
+        self.sectionTreeWidget.setHeaderHidden(1)
         layout.addWidget(self.sectionTreeWidget, 0)
         self.notesListWidget.setWindowTitle('Notes')
         layout.addWidget(self.notesListWidget, 0)
-        self.view = QWebView()
-        layout.addWidget(self.view, 1)
 
-        # self.textEdit.setPlainText("This widget takes up all the remaining space "
-        #         "in the top-level layout.")
-        # layout.addWidget(self.textEdit, 1)
+        subVBox = QGroupBox()
+        vLayout = QVBoxLayout()
+
+        self.titleLabel = QLabel()
+        vLayout.addWidget(self.titleLabel, 0)
+
+        self.view = QWebView()
+        vLayout.addWidget(self.view, 1)
+
+        subVBox.setLayout(vLayout)
+
+        layout.addWidget(subVBox, 1)
 
         self.horizontalGroupBox.setLayout(layout)
 
@@ -124,11 +138,10 @@ class MainWindow(QMainWindow):
         #     self.setCurrentFile('')
 
     def open(self):
-        self.signal.emit()
-        # if self.maybeSave():
-        #     fileName, _ = QFileDialog.getOpenFileName(self)
-        #     if fileName:
-        #         self.loadFile(fileName)
+        if self.maybeSave():
+            fileName, _ = QFileDialog.getOpenFileName(self)
+            if fileName:
+                self.loadFile(fileName)
 
     def save(self):
         if self.curFile:
@@ -159,20 +172,14 @@ class MainWindow(QMainWindow):
             item = QListWidgetItem(self.page_dict[page_id].title, self.notesListWidget)
             item.setData(1, QVariant(page_id))
 
-        # for notebook_id in hierarchy.keys():
-        #     item = QTreeWidgetItem(self.sectionTreeWidget, [section_dict[x].name for x in hierarchy[notebook_id].keys()])
-        self.sectionTreeWidget.show()
-        # self.sectionTreeWidget.itemSelectionChanged.connect(self.on_sectionList_selection_changed)
-
     def readDB(self):
-        dbm_obj = Dbm()
-        dbm_obj.read()
-        [self.hierarchy_dict, self.notebook_dict, self.section_dict, self.page_dict] = dbm_obj.get_hierarchy_dict()
+
+        self.dbm_obj.read()
+        [self.hierarchy_dict, self.notebook_dict, self.section_dict, self.page_dict] = self.dbm_obj.get_hierarchy_dict()
         self.populate_section_list(self.hierarchy_dict, self.notebook_dict, self.section_dict)
 
     def sync(self):
-        dbm_obj = Dbm()
-        dbm_obj.fetch()
+        self.dbm_obj.fetch()
 
     def about(self):
         QMessageBox.about(self, "About Application",
@@ -350,12 +357,16 @@ class MainWindow(QMainWindow):
     def strippedName(self, fullFileName):
         return QFileInfo(fullFileName).fileName()
 
+    def write_at_exit(self):
+        self.dbm_obj.write([self.hierarchy_dict, self.notebook_dict, self.section_dict, self.page_dict])
 
 if __name__ == '__main__':
     import sys
+    import atexit
 
     app = QApplication(sys.argv)
     app.setStyle(QStyleFactory.create('Fusion'))
     mainWin = MainWindow()
+    atexit.register(mainWin.write_at_exit)
     mainWin.show()
     sys.exit(app.exec_())

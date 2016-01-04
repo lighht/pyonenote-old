@@ -23,3 +23,54 @@ class Page:
             rest_api = RestAPI()
             self.content = (rest_api.get_page_content(self.content_url))
         return self.content
+
+
+from PyQt5.QtCore import (pyqtSignal, QThread, QMutex, QWaitCondition, QMutexLocker)
+
+
+class FetchPage(QThread):
+    fetchSignal = pyqtSignal(str, name='fetchComplete')
+
+    def __init__(self, parent=None):
+        super(FetchPage, self).__init__(parent)
+        print('thread initialized')
+        self.mutex = QMutex()
+        self.condition = QWaitCondition()
+
+        self.restart = False
+        self.abort = False
+
+    def __del__(self):
+        self.mutex.lock()
+        self.abort = True
+        self.condition.wakeOne()
+        self.mutex.unlock()
+
+        self.wait()
+
+    def fetch(self, page):
+        locker = QMutexLocker(self.mutex)
+        self.page = page
+        if page.content is not None:
+            print('Returning old content')
+            self.fetchSignal.emit(page.content)
+        else:
+            if not self.isRunning():
+                self.start(QThread.LowPriority)
+            else:
+                self.restart = True
+                self.condition.wakeOne()
+
+    def run(self):
+        print("running page fetch")
+        rest_api = RestAPI()
+        self.page.content = (rest_api.get_page_content(self.page.content_url))
+        # print(self.page.content)
+        self.fetchSignal.emit(self.page.content)
+        # self.fetchSignal.emit()
+        print('signal emitted')
+        self.mutex.lock()
+        if not self.restart:
+            self.condition.wait(self.mutex)
+        self.restart = False
+        self.mutex.unlock()

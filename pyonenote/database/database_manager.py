@@ -16,10 +16,15 @@ class Dbm:
         self.section_dict = {}
         self.pages_dict = {}
         self.hierarchy_dict = {}
+        self.dataset = [self.hierarchy_dict, self.notebook_dict, self.section_dict, self.pages_dict]
 
-    def write(self):
+    def write(self, dataset=None):
+        if dataset is None:
+            dataset = self.dataset
+        print('Writing')
+        print(dataset)
         with open(PAGE_DB, 'wb') as output:
-            pickle.dump(self.pages_list_json, output, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(dataset, output, pickle.HIGHEST_PROTOCOL)
 
     # Reads the object which was written as JSON during fetch
     # Creates notebook, section and page dictionaries with {id:object} format
@@ -31,8 +36,28 @@ class Dbm:
     def read(self):
         with open(PAGE_DB, 'rb') as input:
             obj = pickle.load(input)
-        self.pages_list_json = obj
+        self.dataset = obj
+        [self.hierarchy_dict, self.notebook_dict, self.section_dict, self.pages_dict] = self.dataset
+        # for notebook in self.hierarchy_dict.keys():
+        #     print(self.notebook_dict[notebook].name)
+        #     for section in self.hierarchy_dict[notebook].keys():
+        #         print("--"+self.section_dict[section].name)
+        #         for page in self.hierarchy_dict[notebook][section]:
+        #             print("  --"+self.pages_dict[page].title)
 
+    def get_hierarchy_dict(self):
+        return [self.hierarchy_dict, self.notebook_dict, self.section_dict, self.pages_dict]
+
+    def get_notebook_list(self):
+        return self.notebook_list
+
+    def get_pages_list(self):
+        return self.pages_list
+
+    def fetch(self):
+        rest_api_obj = restapi.RestAPI()
+        response = rest_api_obj.get_pages_list()
+        self.pages_list_json = response['value']
         pages_list = []
 
         for i in range(0, len(self.pages_list_json)):
@@ -53,26 +78,4 @@ class Dbm:
             else:
                 self.hierarchy_dict[current_notebook_id][current_section_id].append(current_page.id)
             pages_list.append(current_page)
-
-
-            # for notebook in self.hierarchy_dict.keys():
-            #     print(self.notebook_dict[notebook].name)
-            #     for section in self.hierarchy_dict[notebook].keys():
-            #         print("--"+self.section_dict[section].name)
-            #         for page in self.hierarchy_dict[notebook][section]:
-            #             print("  --"+self.pages_dict[page].title)
-
-    def get_hierarchy_dict(self):
-        return [self.hierarchy_dict, self.notebook_dict, self.section_dict, self.pages_dict]
-
-    def get_notebook_list(self):
-        return self.notebook_list
-
-    def get_pages_list(self):
-        return self.pages_list
-
-    def fetch(self):
-        rest_api_obj = restapi.RestAPI()
-        response = rest_api_obj.get_pages_list()
-        self.pages_list_json = response['value']
         self.write()

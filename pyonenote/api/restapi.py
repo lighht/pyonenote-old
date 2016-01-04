@@ -1,15 +1,15 @@
-import os
 import sys
 
 import requests
 
-from pyonenote import SESSION_FILE
 from pyonenote.api.client import Client
 
 
+# TODO Just read the Session info file once. Currently every time new RestAPI object is created, file is read.
 class RestAPI:
     def __init__(self):
-        self.session_info = self.get_session_info()
+        self.client = Client()
+        self.session_info = self.client.get_session_info()
 
     def get_pages_list(self):
         bearer_token = 'Bearer ' + self.session_info['access_token']
@@ -55,7 +55,6 @@ class RestAPI:
             notebook_list = response.json()
         except:
             print('request  for notebooks failed\n')
-            sys.exit(0)
         return notebook_list
 
     def get_sections_in_notebook(self, notebook_id):
@@ -110,14 +109,3 @@ class RestAPI:
             </html>
             """
         return (head + title + titlend + body + bodyend)
-
-    def get_session_info(self):
-        client_obj = Client()
-        if not os.path.exists(SESSION_FILE):
-            print('file not found')
-            sys.exit()
-        else:
-            session_info = client_obj.get_session_info()
-            print('session info loaded')
-        self.session_info = session_info
-        return self.session_info

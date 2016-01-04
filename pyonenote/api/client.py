@@ -14,8 +14,8 @@ class Client:
     OAUTH_TOKEN_URI = 'https://login.live.com/oauth20_token.srf'
     OAUTH_SIGNOUT_URI = 'https://login.live.com/oauth20_logout.srf'
     API_URI = 'https://www.onenote.com/api/v1.0/'
-    DEFAULT_CLIENT_ID = ''
-    DEFAULT_CLIENT_SECRET = ''
+    DEFAULT_CLIENT_ID = '000000004416FFEC'
+    DEFAULT_CLIENT_SECRET = 'xdFxXg8SccDLuhrJ8RX8oOfXcjo6fl9-'
 
     def __init__(self, client_id=DEFAULT_CLIENT_ID, client_secret=DEFAULT_CLIENT_SECRET,
                  client_scope=DEFAULT_CLIENT_SCOPE,
@@ -59,14 +59,16 @@ class Client:
         :returns json formatted response
         """
         if uri is None:
-            try:
-                with open(SESSION_FILE, 'r') as f:
-                    session_info = json.loads(f.read())
-                if time.time() > session_info['expires_at']:
-                    print('token expired.getting new')
-                    self.renew_tokens(session_info)
-            except:
-                print('reading failed')
+            if self.session_info is None:
+                try:
+                    with open(SESSION_FILE, 'r') as f:
+                        self.session_info = json.loads(f.read())
+                    self.renew_if_expired()
+                except:
+                    print('reading failed')
+            else:
+                self.renew_if_expired()
+
 
         if uri is not None and '?' in uri:
             qs_dict = parse_qs(uri.split('?')[1])
@@ -90,17 +92,18 @@ class Client:
             self.session_info = session_info
         return self.session_info
 
-    def renew_tokens(self, session_info_old):
+    def renew_tokens(self):
         params = {
             'client_id': self.client_id,
             'client_secret': self.client_secret,
             'redirect_uri': self.redirect_uri,
             'grant_type': 'refresh_token',
-            'refresh_token': session_info_old['refresh_token']
+            'refresh_token': self.session_info['refresh_token']
         }
         request = requests.post(self.OAUTH_TOKEN_URI, data=params)
         self.session_info = request.json()
         self.session_info['expires_at'] = time.time() + self.session_info['expires_in']
+        print("new tokens:" + self.session_info['access_token'])
         self.dump()
 
     def dump(self):
@@ -112,3 +115,8 @@ class Client:
                 print('session file written')
         except:
             print('writing failed')
+
+    def renew_if_expired(self):
+        if time.time() > self.session_info['expires_at']:
+            print('token expired.getting new')
+            self.renew_tokens()

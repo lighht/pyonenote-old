@@ -1,13 +1,11 @@
 import argparse
 
-from pyonenote.database import notebook_db, section_db, page_db
+from pyonenote.database import notebook_db, section_db
 
 
 class CommandArgPar:
     notebook = notebook_db.NotebookDB()
     section = section_db.SectionDB()
-    page = page_db.PageDB()
-
 
 def main():
     parser = argparse.ArgumentParser()
