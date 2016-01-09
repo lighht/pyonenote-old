@@ -62,7 +62,7 @@ class FetchPage(QThread):
                 self.condition.wakeOne()
 
     def run(self):
-        print("running page fetch")
+        print("running page fetch for " + self.page.title)
         rest_api = RestAPI()
         self.page.content = (rest_api.get_page_content(self.page.content_url))
         # print(self.page.content)

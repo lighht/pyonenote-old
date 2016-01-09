@@ -50,7 +50,7 @@ from PyQt5.QtWidgets import (QAction, QApplication, QFileDialog, QMainWindow,
                              QTreeWidget, QTreeWidgetItem, QVBoxLayout)
 
 from pyonenote.api.pages import FetchPage
-from pyonenote.database.database_manager import Dbm
+from pyonenote.database.database_manager import Dbm, SyncAllThread
 
 
 class MainWindow(QMainWindow):
@@ -78,6 +78,8 @@ class MainWindow(QMainWindow):
         # For binding slots and signals
         self.fetchPageThread = FetchPage()
         self.fetchPageThread.setObjectName('fetchPageThread')
+        self.syncAllThread = SyncAllThread()
+        self.syncAllThread.setObjectName('syncAllThread')
         self.textEdit.document().contentsChanged.connect(self.documentWasModified)
         self.sectionTreeWidget.setObjectName("sectionTreeWidget")
         self.notesListWidget.setObjectName("notesListWidget")
@@ -93,12 +95,19 @@ class MainWindow(QMainWindow):
     def on_notesListWidget_itemSelectionChanged(self):
         for x in self.notesListWidget.selectedItems():
             self.fetchPageThread.fetchSignal.connect(self.on_fetchPageThread_fetchComplete)
+            self.titleLabel.setText("Syncing")
+            self.statusBar().showMessage("Syncing")
             # self.fetchPageThread.fetchSignal.connect(lambda:self.view.setHtml("<body>hello world</body>"))
             self.fetchPageThread.fetch(self.page_dict[x.data(1)])
 
     def on_fetchPageThread_fetchComplete(self, string):
         self.view.setHtml(string)
         self.titleLabel.setText(self.view.title())
+        self.statusBar().showMessage("Page fetched")
+
+    def on_syncAllThread_syncComplete(self, dbm):
+        self.dbm_obj = dbm
+        self.statusBar().showMessage("Sync complete")
 
     def createHorizontalGroupBox(self):
         self.horizontalGroupBox = QGroupBox()
@@ -179,7 +188,9 @@ class MainWindow(QMainWindow):
         self.populate_section_list(self.hierarchy_dict, self.notebook_dict, self.section_dict)
 
     def sync(self):
-        self.dbm_obj.fetch()
+        self.syncAllThread.syncCompleteSignal.connect(self.on_syncAllThread_syncComplete)
+        self.statusBar().showMessage("Syncing")
+        self.syncAllThread.sync(self.dbm_obj)
 
     def about(self):
         QMessageBox.about(self, "About Application",

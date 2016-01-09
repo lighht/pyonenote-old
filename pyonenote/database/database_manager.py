@@ -21,8 +21,6 @@ class Dbm:
     def write(self, dataset=None):
         if dataset is None:
             dataset = self.dataset
-        print('Writing')
-        print(dataset)
         with open(PAGE_DB, 'wb') as output:
             pickle.dump(dataset, output, pickle.HIGHEST_PROTOCOL)
 
@@ -79,3 +77,50 @@ class Dbm:
                 self.hierarchy_dict[current_notebook_id][current_section_id].append(current_page.id)
             pages_list.append(current_page)
         self.write()
+
+
+from PyQt5.QtCore import QThread, pyqtSignal, QMutex, QWaitCondition, QMutexLocker
+
+
+class SyncAllThread(QThread):
+    syncCompleteSignal = pyqtSignal(Dbm, name='syncComplete')
+
+    def __init__(self, parent=None):
+        super(SyncAllThread, self).__init__(parent)
+        print('thread initialized')
+        self.mutex = QMutex()
+        self.condition = QWaitCondition()
+
+        self.restart = False
+        self.abort = False
+
+    def __del__(self):
+        self.mutex.lock()
+        self.abort = True
+        self.condition.wakeOne()
+        self.mutex.unlock()
+
+        self.wait()
+
+    def sync(self, dbm):
+        locker = QMutexLocker(self.mutex)
+        self.dbm = dbm
+        print("in sync thread")
+        if not self.isRunning():
+            self.start(QThread.LowPriority)
+        else:
+            self.restart = True
+            self.condition.wakeOne()
+
+    def run(self):
+        print("running sync thread")
+        self.dbm.fetch()
+        # print(self.page.content)
+        self.syncCompleteSignal.emit(self.dbm)
+        # self.fetchSignal.emit()
+        print('signal emitted')
+        self.mutex.lock()
+        if not self.restart:
+            self.condition.wait(self.mutex)
+        self.restart = False
+        self.mutex.unlock()
