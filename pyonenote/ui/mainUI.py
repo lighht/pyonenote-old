@@ -67,7 +67,7 @@ class MainWindow(QMainWindow):
 
         self.createActions()
         self.createMenus()
-        self.createToolBars()
+        # self.createToolBars()
         self.createStatusBar()
         self.readSettings()
 
@@ -84,6 +84,7 @@ class MainWindow(QMainWindow):
         self.sectionTreeWidget.setObjectName("sectionTreeWidget")
         self.notesListWidget.setObjectName("notesListWidget")
         QMetaObject.connectSlotsByName(self)
+        self.readDB()
 
     @pyqtSlot()
     def on_sectionTreeWidget_itemSelectionChanged(self):
@@ -115,8 +116,10 @@ class MainWindow(QMainWindow):
 
         self.sectionTreeWidget.setHeaderHidden(1)
         layout.addWidget(self.sectionTreeWidget, 0)
+        self.sectionTreeWidget.setStyleSheet("background-color: rgb(215,227,229)")
         self.notesListWidget.setWindowTitle('Notes')
         layout.addWidget(self.notesListWidget, 0)
+        self.notesListWidget.setStyleSheet("QListWidget {background-color: rgb(196,226,233)}")
 
         subVBox = QGroupBox()
         vLayout = QVBoxLayout()
@@ -168,12 +171,14 @@ class MainWindow(QMainWindow):
         print('selected item index changed '),
 
     def populate_section_list(self, hierarchy, notebook_dict, section_dict):
+        self.sectionTreeWidget.clear()
         for notebook_id in hierarchy.keys():
             notebook_sectionTreeWidget = QTreeWidgetItem(self.sectionTreeWidget,
                                                          [notebook_dict[notebook_id].name, notebook_id])
             for section_id in hierarchy[notebook_id].keys():
                 QTreeWidgetItem(notebook_sectionTreeWidget, [section_dict[section_id].name, section_id])
         self.sectionTreeWidget.show()
+        self.sectionTreeWidget.expandAll()
 
     def populate_notes_list(self, notebook_id, section_id):
         self.notesListWidget.clear()
@@ -190,7 +195,7 @@ class MainWindow(QMainWindow):
     def sync(self):
         self.syncAllThread.syncCompleteSignal.connect(self.on_syncAllThread_syncComplete)
         self.statusBar().showMessage("Syncing")
-        self.syncAllThread.sync(self.dbm_obj)
+        self.syncAllThread.sync()
 
     def about(self):
         QMessageBox.about(self, "About Application",
@@ -361,9 +366,9 @@ class MainWindow(QMainWindow):
         if self.curFile:
             shownName = self.strippedName(self.curFile)
         else:
-            shownName = 'untitled.txt'
+            shownName = 'OneNote for linux'
 
-        self.setWindowTitle("%s[*] - Application" % shownName)
+        self.setWindowTitle(shownName)
 
     def strippedName(self, fullFileName):
         return QFileInfo(fullFileName).fileName()

@@ -102,9 +102,9 @@ class SyncAllThread(QThread):
 
         self.wait()
 
-    def sync(self, dbm):
+    def sync(self):
         locker = QMutexLocker(self.mutex)
-        self.dbm = dbm
+        self.dbm = Dbm()
         print("in sync thread")
         if not self.isRunning():
             self.start(QThread.LowPriority)
